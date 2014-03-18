@@ -1,0 +1,8 @@
+{application,bakalarka}.
+{packages,[]}.
+{modules,[bakalarka_app,bakalarka_sup,cache_handler,gate,lbSsSupervisor,
+          lbsrSupervisor,loadBalancerBehaviour,loadBalancerRoundRobin,
+          loadBalancerSR,loadBalancerSRMonitor,loadBalancerSS,
+          rootLbSupervisor,rootSrSupervisor,rootSupervisor,rootWsSupervisor,
+          serviceRegister,serviceRegisterSupervisor,serviceServer,timer,
+          worker,workerSpawnerSupervisor,worker_spawner,wtimer]}.
