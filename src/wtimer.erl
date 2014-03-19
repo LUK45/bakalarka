@@ -1,6 +1,7 @@
 -module(wtimer).
 
 -export([start/2]).
+-compile([{parse_transform, lager_transform}]).
 
 %%% timer modul, je prideleny kazdemu workerovi
 %%% meria cas, ktory je v ramci SLA povoleny pre dany request, pokial sa prkroci a request nie je obsluzeny, vykona funkciu ktora je parametrom pre nastartovanie casovaca!!

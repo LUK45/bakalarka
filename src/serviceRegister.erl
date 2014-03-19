@@ -1,7 +1,7 @@
 -module(serviceRegister).
 %% gen_server_mini_template
 -behaviour(gen_server).
-
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/1,find_LbSs/3,addService/2,giveSRList/1,newDict/2,
 		newSrList/2,giveServicesDict/1,showSRList/1]).
 
@@ -15,6 +15,7 @@ start_link(Dict) -> gen_server:start_link(?MODULE, Dict, []).
 
 init(St) -> 
 	io:format("serviceRegister~p: ~n~p~n",[self(), St]),
+	lager:info("service register~p: my state is ~p",[self(), lager:pr(St, ?MODULE)]),
 	process_flag(trap_exit, true),
 	Mode = dict:fetch(mode, St),
 	if
@@ -23,11 +24,11 @@ init(St) ->
 			case whereis(lbsr) of
 
 				undefined ->
-					io:format("serviceRegister:~p false reg~n",[self()]),
+					%io:format("serviceRegister:~p false reg~n",[self()]),
 					SRL = queue:in(self(), queue:new());
 
 				_Pid  ->
-					io:format("serviceRegister:~p true reg~n",[self()]),
+					%io:format("serviceRegister:~p true reg~n",[self()]),
 					SRL = loadBalancerSR:giveSRList(lbsr),
 					io:format("sr~p: srlist: ~p~n",[self(), SRL])
 											
@@ -36,7 +37,7 @@ init(St) ->
 		true -> 
 			St2 = St	
 	end,
-	io:format("serviceRegister:~p after reg~n",[self()]),
+	%io:format("serviceRegister:~p after reg~n",[self()]),
 	
 
 	
@@ -45,22 +46,23 @@ init(St) ->
 	case {Mode,Lbsr,Sr} of
 
 	    {normal, _, undefined} ->
-		    io:format("serviceRegister:~p mode normal, sr down~n",[self()]), %%% toto by enmalo nastat -> doriesit!!!
+		  %  io:format("serviceRegister:~p mode normal, sr down~n",[self()]), %%% toto by enmalo nastat -> doriesit!!!
+		  	lager:warning("serviceRegister~p: my mode is normal, sr master down!",[self]),
 	    	Dict2 = noDict;
 	    
 	    {normal, _, _Pi} -> 
-	    io:format("sr~p: druha~n",[self()]),
+	   % io:format("sr~p: druha~n",[self()]),
 	    	Dict2 = loadBalancerSR:giveServicesDict(sr); 
 	    
 	    
 	    {master, undefined, _} ->
-	    io:format("sr~p: tretia~n",[self()]),
+	   % io:format("sr~p: tretia~n",[self()]),
 	    	Dict2 = dict:new();
 	    
 	    {master, _P, _} ->
-	    io:format("sr~p: stvrta~n",[self()]),
+	   % io:format("sr~p: stvrta~n",[self()]),
 	    	Dict = loadBalancerSR:giveServicesDict(lbsr),
-	    	io:format("sr~p: dostal som dict ~p~n",[self(), Dict]),
+	    	%io:format("sr~p: dostal som dict ~p~n",[self(), Dict]),
 	    	if
 	    		Dict =:= noDict ->
 
@@ -73,14 +75,16 @@ init(St) ->
 	State = dict:store(dict, Dict2, St2),
 	if
 		Mode =:= master ->
-			io:format("sr~p: som master registrujem sa~n",[self()]),
+			%io:format("sr~p: som master registrujem sa~n",[self()]),
 			register(sr, self());
 		true ->	
-			io:format("sr~p: nie som master neregistrujem sa~n",[self()])
+			%io:format("sr~p: nie som master neregistrujem sa~n",[self()])
+			ok
 	end,
 
 	
-	io:format("serviceRegister~p: ~n~p~n",[self(), State]),
+	%io:format("serviceRegister~p: ~n~p~n",[self(), State]),
+	lager:notice("serviceRegister~p: my state after init is ~p",[self(), lager:pr(State, ?MODULE)]),
 	{ok, State}.
 
 addService(Pid, ServiceId) -> gen_server:cast(Pid, {addService,ServiceId}).
@@ -106,15 +110,15 @@ giveServicesDict(Pid) -> gen_server:call(Pid,{giveServicesDict}).
 %% gen_server callbacks.........................................................................................
 
 handle_call({giveServicesDict} , _From, State) ->
-	io:format("sr: ~p givingdist~n",[self()]),	
+	%io:format("sr: ~p givingdist~n",[self()]),	
 	case dict:is_key(dict,State) of
 		true ->
-		Reply = dict:fetch(dict, State),
-		io:format("sr: ~p givingdist~p~n",[self(),Reply]);
+		Reply = dict:fetch(dict, State);
+		%io:format("sr: ~p givingdist~p~n",[self(),Reply]);
 			
 		false ->
-			Reply = noDict	,
-		io:format("sr: ~p givingdist~p~n",[self(),Reply])
+			Reply = noDict
+		%io:format("sr: ~p givingdist~p~n",[self(),Reply])
 	end,
 	
 	{reply,Reply, State};
@@ -127,7 +131,8 @@ handle_call({giveSRList}, _From, State) ->
 
 handle_call({find_LbSs, ServiceId, _WorkerPid}, _From, State) -> 
 	Reply = dict:fetch(ServiceId, dict:fetch(dict,State)),
-	io:format("serviceRegister~p: posielam ~p ako lbss pre ~p~n",[self(), Reply, ServiceId]),
+	%io:format("serviceRegister~p: posielam ~p ako lbss pre ~p~n",[self(), Reply, ServiceId]),
+	lager:info("serviceRegister~p: sending ~p as lbss for service ID ~p",[self(), Reply, ServiceId]),
 	{reply, Reply, State};
 
 
@@ -145,16 +150,18 @@ handle_cast({addService, ServiceId}, State) ->
 			Dict1 = dict:store(ServiceId, Child, Dict),
 			informSRList(Dict1, dict:fetch(srList,State)),
 			State1 = dict:erase(dict,State),
-			State2 = dict:store(dict,Dict1,State1);
+			State2 = dict:store(dict,Dict1,State1),
+			lager:info("serviceRegister~p: added service ID ~p irs lbss is ~p",[self(), ServiceId, Child]);
 
 		true ->
-			io:format("sr~p: nie som master, nemozem pridat sluzbu~n",[self()]),
+			%io:format("sr~p: nie som master, nemozem pridat sluzbu~n",[self()]),
 			State2 = State	
 	end,
 	{noreply, State2};
 
 handle_cast({showSRList}, State) ->
 	io:format("lbsr~p: srlist: ~p~n",[self(), dict:fetch(srList, State)]),
+	
 	{noreply, State};
 
 handle_cast({newSrList,SRL}, State) ->
@@ -173,7 +180,8 @@ handle_cast(_Msg, State) -> {noreply, State}.
 handle_info(_Info, State) -> {noreply, State}.
 terminate(normal, _State) -> io:format("sr~p: terminating reason ~p~n",[self(), normal]), ok;
 terminate(Reason, State) -> 
-	io:format("sr~p: terminating reason ~p~n",[self(), Reason]),
+	%io:format("sr~p: terminating reason ~p~n",[self(), Reason]),
+	lager:info("serviceRegister~p: terminating for reason ~p",[self(), Reason]),
 	Mode = dict:fetch(mode, State),
 	if
 		Mode =:= master ->

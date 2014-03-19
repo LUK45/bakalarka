@@ -1,6 +1,7 @@
 -module(serviceServer).
 %% gen_server_mini_template
 -behaviour(gen_server).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/0]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,

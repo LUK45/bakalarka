@@ -5,7 +5,9 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib
+                  stdlib,
+                  compiler,
+                  syntax_tools
                  ]},
   {mod, { bakalarka_app, []}},
   {env, []}

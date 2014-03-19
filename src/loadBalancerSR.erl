@@ -2,7 +2,7 @@
 -module(loadBalancerSR).
 %% gen_server_mini_template
 -behaviour(gen_server).
-
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/0, find_LbSs/3, addMirror/1, giveSRList/1, giveServicesDict/1, showSRList/1, srDown/3, newSR/2]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -16,7 +16,8 @@ start_link() -> gen_server:start_link(?MODULE, [], []).
 init([]) -> 
 	 
 
-	io:format("lbsr~p: init  name ~n",[self()]),
+	%io:format("lbsr~p: init  name ~n",[self()]),
+	lager:info("lbsr~p: initialization",[self()]),
 	register(lbsr, self()),
 	%SRL = dict:fetch(srList, State),
 	process_flag(trap_exit, true),
@@ -25,14 +26,14 @@ init([]) ->
 	%pridat onitor
 	State = dict:store(srList, SRL2,dict:new()),
 	State2 = dict:store(mirrorNumber, 0, State),
-	io:format("lbsr~p: my state: ~p~n",[self(), State2]),
+	lager:info("lbsr~p: my stateis : ~p",[self(), State2]),
 	{ok, State2}.
 
 
 addMirror(Pid) -> gen_server:cast(Pid, {addMirror}).
 
 find_LbSs(Pid,ServiceId,WorkerPid) -> 
-	io:format("lbsr~p: findlbss ~p~n",[self(), ServiceId]),
+	%io:format("lbsr~p: findlbss ~p~n",[self(), ServiceId]),
 	gen_server:call(Pid, {find_LbSs, ServiceId,WorkerPid}).
 
 giveSRList(Pid) -> 
@@ -53,7 +54,7 @@ srDown(Pid,Mode,From) -> gen_server:cast(Pid, {srDown,Mode,From}).
 %% gen_server callbacks.........................................................................................
 
 handle_call({giveServicesDict} , _From, State) ->
-	io:format("lbsr giving dict~n"),
+	%io:format("lbsr giving dict~n"),
 	SRList = getSRListFromState(srList,State),
 	Length = queue:len(SRList), 
 	if
@@ -80,9 +81,9 @@ handle_call({giveServicesDict} , _From, State) ->
 
 
 handle_call({giveSRList}, From, State) ->
-	io:format("lbsr:~p giving srlist beg~n",[self()]),
+	%io:format("lbsr:~p giving srlist beg~n",[self()]),
 	SRL = dict:fetch(srList,State),
-	io:format("lbsr:~p giving srlist~n",[self()]),
+	%io:format("lbsr:~p giving srlist~n",[self()]),
 	case From of
 		{Pid,_Ref} ->
 			From2 = Pid;
@@ -91,15 +92,15 @@ handle_call({giveSRList}, From, State) ->
 	end,
 	case queue:member(From2,SRL) of
 				true ->
-					io:format("loadbalancerSR~p: ~p, ~p uz bol v liste, nepridavam~n",[self(), From, From2]),
+					%io:format("loadbalancerSR~p: ~p, ~p uz bol v liste, nepridavam~n",[self(), From, From2]),
 					SRL2 = SRL;
 				false ->
-					io:format("loadbalancerSR~p: ~p, ~p nebol v liste, pridavam~n",[self(),From, From2]),
+					lager:info("loadbalancerSR~p: ~p, adding ~p to my SRList",[self(),From, From2]),
 					SRL2 = queue:in(From2, SRL)
 					%informSRList(SRL2)
 			
 	end,
-	io:format("lbsr:~p giving srlist~n",[self()]),
+	%io:format("lbsr:~p giving srlist~n",[self()]),
 	Reply = SRL2,
 	State1= dict:erase(srList,State),
 	State2 = dict:store(srList,SRL2,State1),	
@@ -112,8 +113,9 @@ handle_call({find_LbSs,ServiceId,WorkerPid} , _From, State) ->
 	%io:format(";lbsr ~p~n",[SRList]),
 	case loadBalancerRoundRobin:selectServer(SRList) of
 				{SRpid, SRList2} ->
-					io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
-					io:format("lbsr~p: selected sr is ~p~n",[self(), SRpid]),
+					%io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
+					lager:info("lbsr~p: selected sr is ~p~n",[self(), SRpid]),
+
 					Reply = serviceRegister:find_LbSs(SRpid,ServiceId,WorkerPid);
 					
 				{-1} ->
@@ -160,9 +162,9 @@ handle_cast({srDown, Mode,From}, State) ->
 	
 	case Mode of
 			master ->
-				io:format("lbsr~p : master down, new srlist: ~p~n",[self(), SRL2]);
+				lager:warning("lbsr~p : master down, new srlist: ~p~n",[self(), SRL2]);
 			normal ->
-				io:format("lbsr~p : mirror down, new srlist: ~p~n",[self(), SRL2]),
+				lager:info("lbsr~p : mirror down, new srlist: ~p~n",[self(), SRL2]),
 				serviceRegister:newSrList(sr, SRL2)
 							
 	end,
@@ -180,7 +182,7 @@ handle_cast({addMirror}, State) ->
 	MirrorNumber = dict:fetch(mirrorNumber, State),
 	MirrorNumber2 = MirrorNumber + 1,
 	Name = string:concat("mirror", erlang:integer_to_list(MirrorNumber2)),
-	io:format("lbsr num ~p~n", [MirrorNumber2]),
+	%io:format("lbsr num ~p~n", [MirrorNumber2]),
 	{ok, Pid} = supervisor:start_child(rootSr, {Name,{serviceRegisterSupervisor, start_link, [SRState]}, permanent, 1000, supervisor, [serviceRegisterSupervisor]} ),
 	%io:format("lbsr ~p ~n", [Pid]),
 	[{_Id, Child, _Type, _Modules}] = supervisor:which_children(Pid),
@@ -192,7 +194,7 @@ handle_cast({addMirror}, State) ->
 	St2 = dict:erase(srList, State3),
 	St3 = dict:store(srList, SRL2, St2),
 	serviceRegister:newSrList(sr,SRL2),
-	io:format("lbsr~p : addMirror new srlist ~p ~nand state ~p~n",[self(), SRL2, St3]),	
+	lager:info("lbsr~p : addMirror new srlist ~p ~nand state ~p~n",[self(), SRL2, St3]),	
 	{noreply, St3};	
 
 
@@ -200,7 +202,7 @@ handle_cast(_Msg, State) -> {noreply, State}.
 handle_info(_Info, State) -> {noreply, State}.
 
 %terminate(shutdown, S) -> io:format("lbsr:~p shutdown~n",[self()]), ok;
-terminate(Reason, _State) -> io:format("lbsr~p: stopping reason ~p~n",[self(),Reason]), ok.
+terminate(Reason, _State) -> lager:error("lbsr~p: stopping reason ~p~n",[self(),Reason]), ok.
 code_change(_OldVsn, State, _Extra) -> {ok, State}.
 
 %% other .................................................................................

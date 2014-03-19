@@ -1,6 +1,7 @@
 -module(loadBalancerSS).
 %% gen_server_mini_template
 -behaviour(gen_server).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/1]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -10,7 +11,7 @@ terminate/2, code_change/3]).
 start_link(State) -> gen_server:start_link(?MODULE, State, []).
 
 init(State) -> 
-	io:format("loadBalancerSS~p: lbss for ~p~n",[self(),dict:fetch(serviceId,State)]),
+	lager:info("loadBalancerSS~p: lbss for ~p~n",[self(),dict:fetch(serviceId,State)]),
 	{ok, State}.
 
 

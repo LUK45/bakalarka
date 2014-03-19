@@ -1,6 +1,7 @@
 -module(worker_spawner).
 %% gen_server_mini_template
 -behaviour(gen_server).
+-compile([{parse_transform, lager_transform}]).
 -export([start_link/1,spawnWorker/2]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -10,7 +11,7 @@ start_link(State) -> gen_server:start_link( ?MODULE, State, []).
 
 init(State) -> 
 	register(ws, self()),
-	io:format("worker_spawner:~p~n",[self()]),
+	lager:info("worker_spawner:~p~n",[self()]),
 	{ok, State}.
 
 spawnWorker(Pid,Name) -> gen_server:cast(Pid, {spawnWorker,Name}).
