@@ -12,6 +12,7 @@ start_link(State) -> gen_server:start_link(?MODULE, State, []).
 
 init(State) -> 
 	lager:info("loadBalancerSS~p: lbss for ~p~n",[self(),dict:fetch(serviceId,State)]),
+	register(erlang:list_to_atom(dict:fetch(name, State)), self()),
 	{ok, State}.
 
 

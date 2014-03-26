@@ -17,7 +17,7 @@ init([]) ->
           {rootLb,
             {rootLbSupervisor, start_link, []},
             permanent, 1000, supervisor, [rootLbSupervisor]},
-          {rootWs,
-            {rootWsSupervisor, start_link, []},
-            permanent, 1000, supervisor, [rootWsSupervisor]}   	
+          {gateSup,
+            {gateSupervisor, start_link, []},
+            permanent, 1000, supervisor, [gateSupervisor]}     	
          ]}}.

@@ -17,14 +17,15 @@ init({Type,Name}) ->
 	Dict = dict:store(mode, Type, dict:new()),
 	if
 		Type =:= master ->
-			register(rootSr, self());
+			register(rootSr, self()),
+			Dict2 = dict:store(name, "sr", Dict);
 		true ->
-			ok			
+			Dict2 = Dict
 	end,
 
 	{ok, {{one_for_one, 3, 60},
          [{Name,
-           {serviceRegisterSupervisor, start_link, [Dict]},
+           {serviceRegisterSupervisor, start_link, [Dict2]},
            permanent, 1000, supervisor, [serviceRegisterSupervisor]}	
          ]}}.
 

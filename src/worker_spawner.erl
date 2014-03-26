@@ -10,7 +10,8 @@ terminate/2, code_change/3]).
 start_link(State) -> gen_server:start_link( ?MODULE, State, []).
 
 init(State) -> 
-	register(ws, self()),
+	Name = dict:fetch(name, State),
+	register(Name, self()),
 	lager:info("worker_spawner:~p~n",[self()]),
 	{ok, State}.
 
@@ -19,7 +20,7 @@ spawnWorker(Pid,Name) -> gen_server:cast(Pid, {spawnWorker,Name}).
 handle_call(_Request, _From, State) -> {reply, reply, State}.
 
 handle_cast({spawnWorker,Name},State) ->
-	{ok, Wpid} = worker:start_link(ar),
+	{ok, Wpid} = worker:start_link(Name),
 	register(Name,Wpid),
 	State2 = dict:erase(myWorker,State),
 	State3 = dict:store(myWorker,Name,State2),

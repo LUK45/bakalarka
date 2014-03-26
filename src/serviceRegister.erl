@@ -73,15 +73,17 @@ init(St) ->
 	end,   
 
 	State = dict:store(dict, Dict2, St2),
-	if
-		Mode =:= master ->
-			%io:format("sr~p: som master registrujem sa~n",[self()]),
-			register(sr, self());
-		true ->	
-			%io:format("sr~p: nie som master neregistrujem sa~n",[self()])
-			ok
-	end,
 
+	%if
+	%	Mode =:= master ->
+	%		%io:format("sr~p: som master registrujem sa~n",[self()]),
+	%		register(sr, self());
+	%	true ->	
+			%io:format("sr~p: nie som master neregistrujem sa~n",[self()])
+	%		ok
+	%end,
+	MyName = dict:fetch(name, State),
+	register(erlang:list_to_atom(MyName), self()),
 	
 	%io:format("serviceRegister~p: ~n~p~n",[self(), State]),
 	lager:notice("serviceRegister~p: my state after init is ~p",[self(), lager:pr(State, ?MODULE)]),
@@ -143,9 +145,10 @@ handle_cast({addService, ServiceId}, State) ->
 	if
 		 Mode =:= master ->
 			Dict = dict:fetch(dict, State),
-			Name = string:concat("lbss", erlang:atom_to_list(ServiceId)),
+			Name = string:concat("lbss_", erlang:atom_to_list(ServiceId)),
 	    	LbSsState = dict:store(serviceId, ServiceId, dict:new()),
-			{ok, Pid} = supervisor:start_child(rootLb, {Name,{lbSsSupervisor, start_link, [LbSsState]}, permanent, 1000, supervisor, [lbSsSupervisor]} ),
+	    	LbSsState2 = dict:store(name, Name, LbSsState),
+			{ok, Pid} = supervisor:start_child(rootLb, {Name,{lbSsSupervisor, start_link, [LbSsState2]}, permanent, 1000, supervisor, [lbSsSupervisor]} ),
 			[{_Id, Child, _Type, _Modules}] = supervisor:which_children(Pid),
 			Dict1 = dict:store(ServiceId, Child, Dict),
 			informSRList(Dict1, dict:fetch(srList,State)),

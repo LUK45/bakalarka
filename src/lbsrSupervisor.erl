@@ -8,6 +8,7 @@ start_link() ->
     supervisor:start_link(?MODULE, []).
 
 init([]) ->
+	register(erlang:list_to_atom( "lbsrSup"), self()),
     {ok, {{one_for_one, 3, 60},
          [{loadBalancerSR,
            {loadBalancerSR, start_link, []},
