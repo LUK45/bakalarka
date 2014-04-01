@@ -1,0 +1,22 @@
+%% app generated at {2014,4,1} {22,37,32}
+{application,bakalarka,
+             [{description,[]},
+              {vsn,"1"},
+              {id,[]},
+              {modules,[bakalarka_app,bakalarka_sup,cache_handler,gate,
+                        gateSupervisor,helloWorld,lbSsSupervisor,
+                        lbsrSupervisor,loadBalancerBehaviour,
+                        loadBalancerRoundRobin,loadBalancerSR,loadBalancerSS,
+                        rootLbSupervisor,rootSrSupervisor,rootSupervisor,
+                        rootWsSupervisor,serviceRegister,
+                        serviceRegisterSupervisor,serviceServer,worker,
+                        workerSpawnerSupervisor,worker_helloWorld,
+                        worker_spawner,wtimer]},
+              {registered,[]},
+              {applications,[kernel,stdlib,compiler,syntax_tools,cowboy]},
+              {included_applications,[]},
+              {env,[]},
+              {maxT,infinity},
+              {maxP,infinity},
+              {mod,{bakalarka_app,[]}}]}.
+

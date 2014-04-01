@@ -1,0 +1,155 @@
+#include <stdio.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <string.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+
+void Help();
+void Find(const char *path, int uloha, const char *prip);
+
+
+int main(int argc, char *argv[]) {
+   int o, uloha = 0;
+   char *prip = NULL;
+
+   opterr = 0;
+   while ((o = getopt(argc, argv, "h12345p:")) != -1)
+      switch (o) {
+         case 'h':
+            Help();
+            return 0;
+         case '1':
+            uloha = 1; //jeden dir
+            break;
+         case '2':
+            uloha = 2; //viac dir
+            break;
+         case '3':
+            uloha = 3; //iba reg subory
+            break;
+            case '4':
+                uloha = 4; //iba reg. subory s .c
+                break;
+            case '5':
+                uloha = 5; //iba reg. subory s priponou prip
+                break;
+            case 'p':
+                if(optarg == NULL){
+                    printf("Error: nebola zadana pripona");
+                    return -1;
+                }
+                else
+                    prip = optarg;
+                break;
+         default:
+            fprintf(stderr, "Error: '%c': nespravny prepinac\n", optopt);
+            return -1;
+      }
+   argc -= optind;
+   argv += optind;
+
+    if(uloha == 1){
+        if(argc == 0){
+            printf("error: ziadna cesta\n");
+            return -1;
+        }else{
+        Find(argv[0], uloha, prip);
+        }
+    }
+
+    if(uloha == 2 || uloha == 3 || uloha == 4 || uloha == 5){
+        if(uloha == 5 && prip == NULL){
+            printf("Error: nebola zadana pripona\n");
+            return -1;
+        }
+        if(uloha == 4)
+            prip = "c";
+
+        if(argc == 0){
+            Find(".", uloha, prip);
+        }else{
+            while(argc > 0){
+                Find(argv[0], uloha, prip);
+                argv++;
+                argc--;
+            }
+
+        }
+
+    }
+
+
+
+
+}
+void Help(){
+   printf("toto je help ;)\n");
+}
+
+void Find(const char *path, int uloha, const char *prip){
+    char *ext;
+    char *buff;
+
+
+    DIR *dir;
+    struct dirent *d;
+    struct stat st;
+
+    if((dir = opendir(path)) == NULL){
+        printf("Error: chyba otvarania adresara %s\n", path);
+        return;
+    }
+
+    while((d = readdir(dir)) != NULL){
+        if((strcmp(d->d_name, ".") == 0) || (strcmp(d->d_name, "..") == 0)){
+            continue;
+        }
+
+
+
+
+        buff = (char*) malloc((strlen(path) + strlen(d->d_name) + 2) *sizeof(char));
+        strcpy(buff, path);
+        if(buff[strlen(buff) -1] != '/')
+            strcat(buff, "/");
+        strcat(buff, d->d_name);
+
+        if(lstat(buff, &st) != 0){
+            printf("Error: chyba lstat pri %s", buff);
+            free(buff);
+            continue;
+        }
+
+
+
+        if(S_ISDIR(st.st_mode)){
+            Find(buff, uloha, prip);
+        }
+
+        if(uloha == 1 || uloha == 2){
+            printf("Output: %s\n", buff);
+        }
+
+        if(uloha == 3 || uloha == 4 || uloha == 5){
+            if(S_ISREG(st.st_mode)){
+                if(uloha == 3){
+                    printf("Output: %s\n", buff);
+                }
+                if(uloha == 4 || uloha == 5){
+                    if((ext = strrchr(d->d_name, '.')) != NULL){
+                        ext++;
+                        if(strcmp(ext, prip) == 0){
+                           printf("Output: %s\n", buff);
+                        }
+                    }
+                }
+            }
+
+        }
+    free(buff);
+    }
+    closedir(dir);
+}
