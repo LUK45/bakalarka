@@ -4,7 +4,7 @@
 -export([init/1,handle_call/3, handle_cast/2, handle_info/2, terminate/2, 
 		code_change/3]).
 
--export([start_link/1,find_LbSs/2, generatePage/2, timesout/1]).
+-export([start_link/1,find_LbSs/2, generatePage/2]).
 
 
 start_link(Dict) -> 
@@ -15,10 +15,13 @@ start_link(Dict) ->
 
 init(State) -> 
 	lager:info("worker~p: ~p~n",[self(),State]),
-	%wtimer:start(self(), dict:fetch(time,State)),
+	%Dict = dict:store(parent, self(), dict:new()),
+	%Dict2 = dict:store(time, dict:fetch(time,State), Dict),
+	%{ok, Timer} = wtimer:start_link(Dict2),
+	%wtimer:checkTime(Timer),
+	State2 = dict:store(done, no, State),
 
-	%wtimer:start_link(self()),
-	{ok, State}.
+	{ok, State2}.
 
 
 
@@ -27,27 +30,21 @@ find_LbSs(Pid,ServiceId) ->
 	gen_server:cast(Pid, {find_LbSs, ServiceId}).
 
 generatePage(Pid, ServiceId) -> gen_server:call(Pid, {generatePage, ServiceId}).	
-timesout(Pid) -> gen_server:cast(Pid, terminate).
+
 
 handle_call({generatePage, ServiceId}, _From,  State) ->
-	Req= dict:fetch(request, State),
+	%Req= dict:fetch(request, State),
 	%io:format("WORKER: ~p~n",[Req]),
 	LbSs = loadBalancerSR:find_LbSs(lbsr,ServiceId,self()),
 	ServiceServer = loadBalancerSS:giveSS(LbSs),
 	io:format("WORKER: gouing build repsone~n"),
-	Response = serviceServer:generatePage(ServiceServer,Req),
+	Response = serviceServer:generatePage(ServiceServer),
 	io:format("WORKER: REsponse ~p~n",[Response]),
-	{reply, Response, State};
+	State2 = dict:erase(done,State),
+	State3 = dict:store(done, yes, State2),
+	{reply, Response, State3};
 
 handle_call(_Request, _From, State) -> {reply, reply, State}.
-
-
-handle_cast(terminate, State)->
-	lager:info("Worker~p: terminating~n",[self()]),
-	Req= dict:fetch(request, State),
-	{ok, _Req2} = cowboy_req:reply(404, [
-			{<<"content-type">>, <<"text/plain">>}
-			], <<"Unexpected error, try again\n">>, Req);
 
 
 handle_cast({find_LbSs, ServiceId},  State) -> 
@@ -64,5 +61,12 @@ handle_info(Msg, State) ->
 	lager:warning("worker: unknown message ~p som ~p~n",[Msg,self()]),		
 	{noreply, State}.
 
-terminate(_Reason, _State) -> ok.
+terminate(Reason, State) -> 
+	lager:info("Worker~p: terminating for reason ~p~n",[self(),Reason]),
+	Req= dict:fetch(request, State),
+	{ok, _Req2} = cowboy_req:reply(404, [
+		{<<"content-type">>, <<"text/plain">>}
+		], <<"Unexpected error Worker, try again\n">>, Req).
+
+
 code_change(_OldVsn, State, _Extra) -> {ok, State}.

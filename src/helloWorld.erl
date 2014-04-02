@@ -2,7 +2,7 @@
 
 -compile([{parse_transform, lager_transform}]).
 
--export([init/0,generatePage/1]).
+-export([init/0,generatePage/0]).
 %% gen_server callbacks
 
 init() ->
@@ -15,7 +15,8 @@ init() ->
 	{ok,MyServer}.
 
 
-generatePage(_Req) ->
+generatePage() ->
+			
 			Page = "Hello world!\n",
-			Page.
+			{ok,Page}.
 
