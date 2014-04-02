@@ -118,7 +118,7 @@ handle_call({find_LbSs,ServiceId,WorkerPid} , _From, State) ->
 
 					Reply = serviceRegister:find_LbSs(SRpid,ServiceId,WorkerPid);
 					
-				{-1} ->
+				{noServer} ->
 					Reply = noServiceRegister,
 					SRList2 = SRList	
 	end,

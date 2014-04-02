@@ -47,7 +47,7 @@ init(St) ->
 
 	    {normal, _, undefined} ->
 		  %  io:format("serviceRegister:~p mode normal, sr down~n",[self()]), %%% toto by enmalo nastat -> doriesit!!!
-		  	lager:warning("serviceRegister~p: my mode is normal, sr master down!",[self]),
+		  	lager:warning("serviceRegister~p: my mode is normal, sr master down!",[self()]),
 	    	Dict2 = noDict;
 	    
 	    {normal, _, _Pi} -> 

@@ -14,7 +14,9 @@
 %% ===================================================================
 
 start(_StartType, _StartArgs) ->
-    rootSupervisor:start_link().
+		%gate:start(a,b),
+		register(startAPP, self()),
+    	rootSupervisor:start_link().
 
 stop(_State) ->
     ok.

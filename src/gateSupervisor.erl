@@ -11,6 +11,6 @@ init([]) ->
 	register(gateSup, self()),
     {ok, {{one_for_one, 1, 60},
          [{gate,
-           {gate, start_link, []},
+           {gate, start_link, [[trans,req]]},
            permanent, 1000, worker, [gate]}
          ]}}.
