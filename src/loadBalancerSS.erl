@@ -2,7 +2,7 @@
 %% gen_server_mini_template
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/1, giveSS/1]).
+-export([start_link/1, giveSS/1, changeLBmethod/2]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 terminate/2, code_change/3]).
@@ -20,21 +20,25 @@ init(State) ->
 	{ok, Pid2} = ServiceId:init(),
 	Queue = queue:in(Pid2, Q),
 	State2 = dict:store(ssList, Queue, State),
-	{ok, State2}.
+	State3 = dict:store(lbMethod, roundRobin, State2),
+	{ok, State3}.
 
 
 giveSS(Pid) ->
 	gen_server:call(Pid,{giveSS}).
 
 
+changeLBmethod(Pid, LBmethod) -> gen_server:cast(Pid, {changeLBmethod, LBmethod}).
+
+
+
 
 handle_call({giveSS}, _From, State) ->
 		
 	SSList = dict:fetch(ssList, State),	
-	case loadBalancerRoundRobin:selectServer(SSList) of
+	LBmethod = dict:fetch(lbMethod, State),
+	case LBmethod:selectServer(SSList) of
 				{SSpid, SSList2} ->
-					%io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
-					%lager:info("lbsr~p: selected sr is ~p~n",[self(), SRpid]),
 					lager:info("lbss~p: selected sr is ~p~n",[self(), SSpid]),
 					Reply = SSpid;
 					
@@ -48,6 +52,13 @@ handle_call({giveSS}, _From, State) ->
 
 
 handle_call(_Request, _From, State) -> {reply, reply, State}.
+
+handle_cast({changeLBmethod, LBmethod}, State) ->
+	State1 = dict:erase(lbMethod, State),
+	State2 = dict:store(lbMethod, LBmethod, State1),
+	{noreply, State2};
+
+
 handle_cast(_Msg, State) -> {noreply, State}.
 handle_info(_Info, State) -> {noreply, State}.
 terminate(_Reason, _State) -> ok.

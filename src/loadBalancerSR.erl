@@ -3,7 +3,7 @@
 %% gen_server_mini_template
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/0, find_LbSs/3, addMirror/1, giveSRList/1, giveServicesDict/1, showSRList/1, srDown/3, newSR/2]).
+-export([start_link/0, find_LbSs/3, addMirror/1, giveSRList/1, giveServicesDict/1, showSRList/1, srDown/3, newSR/2, changeLBmethod/2]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 terminate/2, code_change/3]).
@@ -26,8 +26,9 @@ init([]) ->
 	%pridat onitor
 	State = dict:store(srList, SRL2,dict:new()),
 	State2 = dict:store(mirrorNumber, 0, State),
-	lager:info("lbsr~p: my stateis : ~p",[self(), State2]),
-	{ok, State2}.
+	State3 = dict:store(lbMethod, roundRobin, State2),
+	lager:info("lbsr~p: my stateis : ~p",[self(), State3]),
+	{ok, State3}.
 
 
 addMirror(Pid) -> gen_server:cast(Pid, {addMirror}).
@@ -48,6 +49,8 @@ giveServicesDict(Pid) -> gen_server:call(Pid,{giveServicesDict}).
 
 srDown(Pid,Mode,From) -> gen_server:cast(Pid, {srDown,Mode,From}).
 
+changeLBmethod(Pid, Method) -> gen_server:cast(Pid, {changeLBmethod, Method}).
+
 
 
 
@@ -57,9 +60,10 @@ handle_call({giveServicesDict} , _From, State) ->
 	%io:format("lbsr giving dict~n"),
 	SRList = getSRListFromState(srList,State),
 	Length = queue:len(SRList), 
+	LBmethod = dict:fetch(lbMethod, State),
 	if
 		Length > 1 ->
-			case loadBalancerRoundRobin:selectServer(SRList) of
+			case LBmethod:selectServer(SRList) of
 				{SRpid, SRList2} ->
 					io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
 					Reply = serviceRegister:giveServicesDict(SRpid);
@@ -110,8 +114,9 @@ handle_call({giveSRList}, From, State) ->
 handle_call({find_LbSs,ServiceId,WorkerPid} , _From, State) ->
 	%io:format("lbsr: handle~n"), 
 	SRList = getSRListFromState(srList,State),
-	%io:format(";lbsr ~p~n",[SRList]),
-	case loadBalancerRoundRobin:selectServer(SRList) of
+	LBmethod = dict:fetch(lbMethod, State),
+	
+	case LBmethod:selectServer(SRList) of
 				{SRpid, SRList2} ->
 					%io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
 					lager:info("lbsr~p: selected sr is ~p~n",[self(), SRpid]),
@@ -133,6 +138,11 @@ handle_call({find_LbSs,ServiceId,WorkerPid} , _From, State) ->
 
 handle_call(_Request, _From, State) -> {reply, reply,State}.
 
+
+handle_cast({changeLBmethod, Method}, State) ->	
+	State1 = dict:erase(lbMethod, State),
+	State2 = dict:store(lbMethod, Method, State1),
+	{noreply, State2};
 
 handle_cast({showSRList}, State) ->
 	io:format("lbsr~p: srlist: ~p~n",[self(), dict:fetch(srList, State)]),
