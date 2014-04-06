@@ -42,18 +42,32 @@ buildResponse(Req, WorkerPid) ->
 				Result2	= ""
 		end,
 
-		Fault = Fault1+Fault2,
+		Value3 = worker:generatePage(WorkerPid, lorem),
+		case Value3 of
+			{ok,Page3} ->
+				Fault3 = 0,
+				Result3 = Page3;
+			_Error3 ->
+				Fault3  = 1,
+				Result3	= ""
+		end,
+
+
+		Fault = Fault1+Fault2+Fault3,
 		case Fault of
-			2 ->
+			3 ->
 				cowboy_req:reply(404, [
 				{<<"content-type">>, <<"text/plain">>}
-				], <<"Unexpected error, try again\n">>, Req);
+				], <<"Unexpected error, try again\n">>, Req),
+				lager:error("Page: unexpected error");		
 			
 			_ ->
-				Result = string:concat(Result1,Result2),
+				Res = string:concat(Result1,Result2),
+				Result = string:concat(Res, Result3),
 				cowboy_req:reply(200,[
     				{<<"content-type">>, <<"text/plain">>}
-					],Result,Req) 
+					],Result,Req),
+				lager:info("Page - OK")	 
 				
 		
 		end.

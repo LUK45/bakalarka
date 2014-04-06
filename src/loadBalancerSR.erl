@@ -38,7 +38,7 @@ find_LbSs(Pid,ServiceId,WorkerPid) ->
 	gen_server:call(Pid, {find_LbSs, ServiceId,WorkerPid}).
 
 giveSRList(Pid) -> 
-io:format("lllll~n"),
+
 gen_server:call(Pid, {giveSRList}).
 
 newSR(Pid,NewSR) -> gen_server:cast(Pid, {newSR, NewSR}).
@@ -65,7 +65,7 @@ handle_call({giveServicesDict} , _From, State) ->
 		Length > 1 ->
 			case LBmethod:selectServer(SRList) of
 				{SRpid, SRList2} ->
-					io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
+					%io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
 					Reply = serviceRegister:giveServicesDict(SRpid);
 				{-1} ->
 					Reply = noServiceRegister,
@@ -73,9 +73,9 @@ handle_call({giveServicesDict} , _From, State) ->
 			end,
 			
 			State1= dict:erase(srList,State),
-			State2 = dict:store(srList,SRList2,State1),	
+			State2 = dict:store(srList,SRList2,State1);
 			
-			io:format("lbsr: ~p dict~p~n",[self(),Reply]);
+			%io:format("lbsr: ~p dict~p~n",[self(),Reply]);
 		true ->
 			Reply = noDict,
 			State2 = State	
@@ -142,6 +142,7 @@ handle_call(_Request, _From, State) -> {reply, reply,State}.
 handle_cast({changeLBmethod, Method}, State) ->	
 	State1 = dict:erase(lbMethod, State),
 	State2 = dict:store(lbMethod, Method, State1),
+	lager:info("lbsr~p: LB method changed to ~p",[self(), Method]),
 	{noreply, State2};
 
 handle_cast({showSRList}, State) ->
@@ -162,7 +163,7 @@ handle_cast({newSR,NewSR}, State) ->
 	St = dict:erase(srList,State),
 	St2 = dict:store(srlist, SRL2, St),
 	serviceRegister:newSrList(sr, SRL2),
-	io:format("lbsr~p: new sr list: ~p~n",[self(), SRL2]),
+	%io:format("lbsr~p: new sr list: ~p~n",[self(), SRL2]),
 	{noreply, St2}; 
 
 handle_cast({srDown, Mode,From}, State) ->

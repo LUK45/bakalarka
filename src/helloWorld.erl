@@ -16,7 +16,6 @@ init() ->
 
 
 generatePage() ->
-			
 			Page = "Hello world!\n",
 			{ok,Page}.
 

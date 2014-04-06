@@ -14,7 +14,6 @@ start_link(State) -> gen_server:start_link( ?MODULE, State, []).
 init(State) -> 
 	register(gate, self()),
 	process_flag(trap_exit, true),
-	io:format("GATE gen serve init~n"),
 		Dispatch = cowboy_router:compile([
 		{'_', [
 			{"/", worker_spawner, []}

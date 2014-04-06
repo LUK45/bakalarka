@@ -16,6 +16,7 @@ init() ->
 
 
 generatePage() ->
+			timer:sleep(200),
 			{_Date={Year,Month,Day},_Time={Hour,Minutes,Seconds}} = erlang:localtime(),
 			Line = string:join(["Date: ",erlang:integer_to_list(Day),".",erlang:integer_to_list(Month),".",erlang:integer_to_list(Year),"\n"],""),
 			Line2 = string:join(["Time: ",erlang:integer_to_list(Hour),":",erlang:integer_to_list(Minutes),":",erlang:integer_to_list(Seconds),"\n"],""),

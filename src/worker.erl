@@ -37,9 +37,9 @@ handle_call({generatePage, ServiceId}, _From,  State) ->
 	%io:format("WORKER: ~p~n",[Req]),
 	LbSs = loadBalancerSR:find_LbSs(lbsr,ServiceId,self()),
 	ServiceServer = loadBalancerSS:giveSS(LbSs),
-	io:format("WORKER: gouing build repsone~n"),
+	%io:format("WORKER: gouing build repsone~n"),
 	Response = serviceServer:generatePage(ServiceServer),
-	io:format("WORKER: REsponse ~p~n",[Response]),
+	%io:format("WORKER: REsponse ~p~n",[Response]),
 	State2 = dict:erase(done,State),
 	State3 = dict:store(done, yes, State2),
 	{reply, Response, State3};
