@@ -11,6 +11,7 @@ start_link(Req) ->
 	%wtimer:start_link(self()),
 	{ok,WorkerPid} = worker:start_link(Req),
 	buildResponse(Req,WorkerPid),
+	worker:stop(WorkerPid),
 	ok.
 
 
@@ -50,7 +51,7 @@ buildResponse(Req, WorkerPid) ->
 				Fault3  = 1,
 				Result3	= ""
 		end,
-			worker:stop(WorkerPid),
+			
 
 		Fault = Fault1+Fault2+Fault3,
 		case Fault of
