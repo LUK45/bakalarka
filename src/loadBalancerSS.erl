@@ -2,7 +2,7 @@
 %% gen_server_mini_template
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/1, giveSS/1, changeLBmethod/2, addServer/2, removeServer/2]).
+-export([start_link/1, giveSS/1, changeLBmethod/2, addServer/3, removeServer/2, serverToQueue/2]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 terminate/2, code_change/3]).
@@ -16,23 +16,33 @@ init(State) ->
 	register(erlang:list_to_atom(dict:fetch(name, State)), self()),
 	ServiceId = dict:fetch(serviceId, State),
 	Number  = dict:fetch(servers, State),
-	Queue = serversInit(Number, queue:new(), ServiceId),
+	Node = dict:fetch(node, State),
+	Queue = queue:new(), 
+	serversInit(Number, ServiceId, Node),
 	State2 = dict:store(ssList, Queue, State),
 	State3 = dict:store(lbMethod, roundRobin, State2),
 	{ok, State3}.
 
-serversInit(Number, Queue, ServiceId) ->
-	while_loop(Number, 0, Queue, ServiceId).
+serversInit(Number,ServiceId, Node) ->
+	while_loop(Number, 0,  ServiceId,Node).
 
 serversStop(Number, Queue, ServiceId) ->
 	stop_loop(Number, 0, Queue, ServiceId).
 
 
-while_loop(Number, Number, Queue, _ServiceId)-> Queue;
-while_loop(Number, Var, Queue, ServiceId)->
-	{ok, Pid} = ServiceId:init(),
-	Queue2 = queue:in(Pid, Queue),
-	while_loop(Number, Var+1, Queue2, ServiceId).
+while_loop(Number, Number, _ServiceId, _Node)-> ok;
+while_loop(Number, Var, ServiceId,Node)->
+	State = dict:store(lbssNode, node(), dict:new()),
+	State2 = dict:store(lbss, self(), State),
+	State3 = dict:store(parent, ServiceId, State2),
+	if
+		Node =:= local ->
+			spawn(ServiceId,init,[State3]);
+		true ->
+			spawn(Node,ServiceId,init,[State3])
+	end,
+	
+	while_loop(Number, Var+1,  ServiceId, Node).
 
 
 stop_loop(Number, Number, Queue, _ServiceId)-> Queue;
@@ -43,7 +53,7 @@ stop_loop(Number, Var, Queue, ServiceId)->
 
 
 
-addServer(Pid, Number) -> gen_server:cast(Pid, {addServer, Number}).		
+addServer(Pid, Number, Node) -> gen_server:cast(Pid, {addServer, Number, Node}).		
 removeServer(Pid, Number) -> gen_server:cast(Pid, {removeServer, Number}).		
 
 giveSS(Pid) ->
@@ -52,7 +62,7 @@ giveSS(Pid) ->
 
 changeLBmethod(Pid, LBmethod) -> gen_server:cast(Pid, {changeLBmethod, LBmethod}).
 
-
+serverToQueue(Pid, Server) -> gen_server:cast(Pid, {serverToQueue, Server}).
 
 
 handle_call({giveSS}, _From, State) ->
@@ -75,13 +85,29 @@ handle_call({giveSS}, _From, State) ->
 
 handle_call(_Request, _From, State) -> {reply, reply, State}.
 
-handle_cast({addServer, Number}, State) ->
+handle_cast({addServer, Number, Node}, State) ->
 	ServiceId = dict:fetch(serviceId, State),
+	serversInit(Number, ServiceId, Node),
+	{noreply, State};
+
+
+
+handle_cast({serverToQueue, Server}, State) ->
+	
 	Queue = dict:fetch(ssList, State),
-	Queue2 = serversInit(Number, Queue, ServiceId),
-	State2 = dict:erase(ssList, State),
-	State3 = dict:store(ssList, Queue2, State2),
-	{noreply, State3};
+	case queue:member(Server, Queue) of
+				true ->
+					%io:format("loadbalancerSR~p: ~p, ~p uz bol v liste, nepridavam~n",[self(), From, From2]),
+					Queue2 = Queue;
+				false ->
+					Queue2 = queue:in(Server, Queue)
+					%informSRList(SRL2)
+			
+	end,
+	State1= dict:erase(ssList,State),
+	State2 = dict:store(ssList,Queue2,State1),	
+	{noreply, State2};
+
 
 handle_cast({removeServer, Number}, State) ->
 	ServiceId = dict:fetch(serviceId, State),

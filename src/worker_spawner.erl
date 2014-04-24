@@ -16,9 +16,10 @@ init(_Transport, Req, []) ->
 
 			
 handle(Req, State) ->
+	
+
 	worker_helloWorld:start_link(Req),
 	{ok, Req, State}.
-
 
 terminate(_Reason, _Req, _State) ->
 ok.			

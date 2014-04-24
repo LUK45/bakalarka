@@ -1,5 +1,6 @@
 -module(worker_helloWorld).
 
+-behaviour(workerBehaviour).
 -compile([{parse_transform, lager_transform}]).
 
 -export([start_link/1, buildResponse/2]).
@@ -8,11 +9,9 @@
 start_link(Req) -> 
 	lager:info("worker_helloWorld0~p: ~p~n",[self(),Req]),
 	%wtimer:start_link(self()),
-	Dict = dict:store(request, Req, dict:new()),
-	Dict2 = dict:store(time, 1000, Dict),
-	{ok,WorkerPid} = worker:start_link(Dict2),
+	{ok,WorkerPid} = worker:start_link(Req),
 	buildResponse(Req,WorkerPid),
-	{ok, Req}.
+	ok.
 
 
 
@@ -51,7 +50,7 @@ buildResponse(Req, WorkerPid) ->
 				Fault3  = 1,
 				Result3	= ""
 		end,
-
+			worker:stop(WorkerPid),
 
 		Fault = Fault1+Fault2+Fault3,
 		case Fault of
@@ -69,7 +68,9 @@ buildResponse(Req, WorkerPid) ->
 					],Result,Req),
 				lager:info("Page - OK")	 
 				
+
 		
 		end.
+
 		
 

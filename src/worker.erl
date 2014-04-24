@@ -4,7 +4,7 @@
 -export([init/1,handle_call/3, handle_cast/2, handle_info/2, terminate/2, 
 		code_change/3]).
 
--export([start_link/1,find_LbSs/2, generatePage/2]).
+-export([start_link/1,find_LbSs/2, generatePage/2, stop/1]).
 
 
 start_link(Dict) -> 
@@ -13,12 +13,13 @@ start_link(Dict) ->
 
 
 
-init(State) -> 
-	lager:info("worker~p: ~p~n",[self(),State]),
+init(Req) -> 
+	lager:info("worker~p: ~p~n",[self(),Req]),
 	%Dict = dict:store(parent, self(), dict:new()),
 	%Dict2 = dict:store(time, dict:fetch(time,State), Dict),
 	%{ok, Timer} = wtimer:start_link(Dict2),
 	%wtimer:checkTime(Timer),
+	State = dict:store(request, Req, dict:new()),
 	State2 = dict:store(done, no, State),
 
 	{ok, State2}.
@@ -31,6 +32,7 @@ find_LbSs(Pid,ServiceId) ->
 
 generatePage(Pid, ServiceId) -> gen_server:call(Pid, {generatePage, ServiceId}).	
 
+stop(Pid) -> gen_server:cast(Pid, terminate).
 
 handle_call({generatePage, ServiceId}, _From,  State) ->
 	%Req= dict:fetch(request, State),
@@ -54,12 +56,16 @@ handle_cast({find_LbSs, ServiceId},  State) ->
 	lager:info("worker~p: reply = ~p~n",[self(),Reply]),
 	{noreply,   State};	
 
+handle_cast(terminate, State) ->
+	{stop, normal, State};
 
 handle_cast(_Msg, State) -> {noreply, State}.
 
 handle_info(Msg, State) -> 
 	lager:warning("worker: unknown message ~p som ~p~n",[Msg,self()]),		
 	{noreply, State}.
+
+terminate(normal, _State) -> ok;
 
 terminate(Reason, State) -> 
 	lager:info("Worker~p: terminating for reason ~p~n",[self(),Reason]),

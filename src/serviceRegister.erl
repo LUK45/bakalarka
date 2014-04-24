@@ -2,7 +2,7 @@
 %% gen_server_mini_template
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/1,find_LbSs/3,addService/3,giveSRList/1,newDict/2,
+-export([start_link/1,find_LbSs/3,addService/4,giveSRList/1,newDict/2,
 		newSrList/2,giveServicesDict/1,showSRList/1, addServiceServer/3, removeService/2]).
 
 %% gen_server callbacks
@@ -89,7 +89,9 @@ init(St) ->
 	lager:notice("serviceRegister~p: my state after init is ~p",[self(), lager:pr(State, ?MODULE)]),
 	{ok, State}.
 
-addService(Pid, ServiceId, Servers) -> gen_server:cast(Pid, {addService,ServiceId, Servers}).
+
+addService(Pid, ServiceId, Servers,Node) -> gen_server:cast(Pid, {addService,ServiceId, Servers,Node}).
+
 addServiceServer(Pid, ServiceId, Servers) -> gen_server:cast(Pid, {addServiceServer,ServiceId, Servers}).
 removeService(Pid, ServiceId) -> gen_server:cast(Pid, {removeService, ServiceId}).
 
@@ -142,7 +144,7 @@ handle_call({find_LbSs, ServiceId, _WorkerPid}, _From, State) ->
 
 handle_call(_Request, _From, State) -> {reply, reply, State}.
 
-handle_cast({addService, ServiceId, Servers}, State) ->
+handle_cast({addService, ServiceId, Servers,Node}, State) ->
 	Mode = dict:fetch(mode,State),
 	if
 		 Mode =:= master ->
@@ -151,7 +153,8 @@ handle_cast({addService, ServiceId, Servers}, State) ->
 	    	LbSsState = dict:store(serviceId, ServiceId, dict:new()),
 	    	LbSsState2 = dict:store(name, Name, LbSsState),
 	    	LbSsState3 = dict:store(servers, Servers, LbSsState2),
-			{ok, Pid} = supervisor:start_child(rootLb, {Name,{lbSsSupervisor, start_link, [LbSsState3]}, permanent, 1000, supervisor, [lbSsSupervisor]} ),
+	    	LbSsState4 = dict:store(node, Node, LbSsState3),
+			{ok, Pid} = supervisor:start_child(rootLb, {Name,{lbSsSupervisor, start_link, [LbSsState4]}, permanent, 1000, supervisor, [lbSsSupervisor]} ),
 			[{_Id, Child, _Type, _Modules}] = supervisor:which_children(Pid),
 			Dict1 = dict:store(ServiceId, Child, Dict),
 			informSRList(Dict1, dict:fetch(srList,State)),
@@ -164,6 +167,8 @@ handle_cast({addService, ServiceId, Servers}, State) ->
 			State2 = State	
 	end,
 	{noreply, State2};
+
+
 
 
 
