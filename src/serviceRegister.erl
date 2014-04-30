@@ -2,7 +2,7 @@
 %% gen_server_mini_template
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/1,find_LbSs/3,addService/4,giveSRList/1,newDict/2,
+-export([start_link/1,find_LbSs/3,addService/4,giveSRList/1,newDict/2, stop/2,
 		newSrList/2,giveServicesDict/1,showSRList/1, addServiceServer/3, removeService/2]).
 
 %% gen_server callbacks
@@ -51,8 +51,8 @@ init(St) ->
 	    	Dict2 = noDict;
 	    
 	    {normal, _, _Pi} -> 
-	   % io:format("sr~p: druha~n",[self()]),
-	    	Dict2 = loadBalancerSR:giveServicesDict(sr); 
+	   % io:format("sr~p: druha~n",[self()]),         %
+	    	Dict2 = serviceRegister:giveServicesDict(sr); 
 	    
 	    
 	    {master, undefined, _} ->
@@ -113,6 +113,12 @@ giveServicesDict(Pid) -> gen_server:call(Pid,{giveServicesDict}).
 
 
 
+stop(Pid, Reason) -> gen_server:cast(Pid, {stop, Reason}).
+ 
+
+
+
+
 %% gen_server callbacks.........................................................................................
 
 handle_call({giveServicesDict} , _From, State) ->
@@ -143,6 +149,8 @@ handle_call({find_LbSs, ServiceId, _WorkerPid}, _From, State) ->
 
 
 handle_call(_Request, _From, State) -> {reply, reply, State}.
+
+handle_cast({stop, Reason}, State) -> {stop, Reason, State};	
 
 handle_cast({addService, ServiceId, Servers,Node}, State) ->
 	Mode = dict:fetch(mode,State),
@@ -229,7 +237,7 @@ handle_cast({newDict, Dict}, State) ->
 
 handle_cast(_Msg, State) -> {noreply, State}.
 handle_info(_Info, State) -> {noreply, State}.
-terminate(normal, _State) -> io:format("sr~p: terminating reason ~p~n",[self(), normal]), ok;
+
 terminate(Reason, State) -> 
 	%io:format("sr~p: terminating reason ~p~n",[self(), Reason]),
 	lager:info("serviceRegister~p: terminating for reason ~p",[self(), Reason]),

@@ -9,7 +9,7 @@ start_link() ->
 
 init([]) ->
 	register(gateSup, self()),
-    {ok, {{one_for_one, 1, 60},
+    {ok, {{one_for_one, 3, 60},
          [{gate,
            {gate, start_link, [[trans,req]]},
            permanent, 1000, worker, [gate]}

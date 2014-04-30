@@ -26,6 +26,7 @@ generatePage() ->
 
 while_loop(Number, Number)-> ok;
 while_loop(Number, Var)->
+	timer:sleep(2),
 	while_loop(Number, Var+1).
 
 

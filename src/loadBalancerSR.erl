@@ -3,7 +3,7 @@
 %% gen_server_mini_template
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
--export([start_link/0, find_LbSs/3, addMirror/1, giveSRList/1, giveServicesDict/1, showSRList/1, srDown/3, newSR/2, changeLBmethod/2]).
+-export([start_link/0, stop/2, find_LbSs/3, addMirror/1, giveSRList/1, giveServicesDict/1, showSRList/1, srDown/3, newSR/2, changeLBmethod/2, removeMirror/1]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
 terminate/2, code_change/3]).
@@ -50,6 +50,10 @@ giveServicesDict(Pid) -> gen_server:call(Pid,{giveServicesDict}).
 srDown(Pid,Mode,From) -> gen_server:cast(Pid, {srDown,Mode,From}).
 
 changeLBmethod(Pid, Method) -> gen_server:cast(Pid, {changeLBmethod, Method}).
+
+stop(Pid, Reason) -> gen_server:cast(Pid, {stop, Reason}).
+
+removeMirror(Pid) -> gen_server:cast(Pid, {removeMirror}).
 
 
 
@@ -118,10 +122,17 @@ handle_call({find_LbSs,ServiceId,WorkerPid} , _From, State) ->
 	
 	case LBmethod:selectServer(SRList) of
 				{SRpid, SRList2} ->
-					%io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
-					lager:info("lbsr~p: selected sr is ~p~n",[self(), SRpid]),
+					SRalive = process_info(SRpid),
+					if
+						SRalive =:= undefined ->
+							Reply = noServiceRegister;
+						true ->
+							%io:format("lbsr~p: give dict ~p~n",[self(), SRpid]),
+							lager:info("lbsr~p: selected sr is ~p~n",[self(), SRpid]),
 
-					Reply = serviceRegister:find_LbSs(SRpid,ServiceId,WorkerPid);
+							Reply = serviceRegister:find_LbSs(SRpid,ServiceId,WorkerPid)
+					end;
+					
 					
 				{noServer} ->
 					Reply = noServiceRegister,
@@ -145,13 +156,49 @@ handle_cast({changeLBmethod, Method}, State) ->
 	lager:info("lbsr~p: LB method changed to ~p",[self(), Method]),
 	{noreply, State2};
 
+handle_cast({stop, Reason}, State) -> {stop, Reason, State};	
+
 handle_cast({showSRList}, State) ->
 	io:format("lbsr~p: srlist: ~p~n",[self(), dict:fetch(srList, State)]),
 	{noreply, State};
 
+handle_cast({removeMirror}, State) ->
+	SRL = dict:fetch(srList, State),
+	LBmethod = dict:fetch(lbMethod, State),
+	SR = whereis(sr),
+	case LBmethod:selectServer(SRL) of
+				{SRpid, SRList2} ->
+					if SR =:= SRpid ->
+							{SRpid2, SRList3} = LBmethod:selectServer(SRList2);
+						true ->
+							{SRpid2, SRList3} = {SRpid, SRList2}
+					end,
+					SRL2 = queue:from_list(lists:delete(SRpid2, queue:to_list(SRList3))),
+
+					{registered_name, RegName} = erlang:process_info(SRpid2, registered_name),
+					Name = erlang:atom_to_list(RegName),
+	    			supervisor:terminate_child(rootSr, Name),
+	    			supervisor:delete_child(rootSr, Name),
+					
+	    			lager:info("lbsr~p: removed mirror ~p",[self(),Name]);
+					
+					
+				{noServer} ->
+					
+					SRL2 = SRL	
+	end,
+
+	State2 = dict:erase(srList, State),
+	State3 = dict:store(srList, SRL2, State2),
+	{noreply, State3};
+
+
+
+
+
 
 handle_cast({newSR,NewSR}, State) ->
-	SRL = dict:fecth(srList, State),
+	SRL = dict:fetch(srList, State),
 	case queue:member(NewSR,SRL) of
 				true ->
 					SRL2 = SRL;

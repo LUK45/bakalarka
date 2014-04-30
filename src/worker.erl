@@ -37,13 +37,33 @@ stop(Pid) -> gen_server:cast(Pid, terminate).
 handle_call({generatePage, ServiceId}, _From,  State) ->
 	%Req= dict:fetch(request, State),
 	%io:format("WORKER: ~p~n",[Req]),
-	LbSs = loadBalancerSR:find_LbSs(lbsr,ServiceId,self()),
-	ServiceServer = loadBalancerSS:giveSS(LbSs),
-	%io:format("WORKER: gouing build repsone~n"),
-	Response = serviceServer:generatePage(ServiceServer),
-	%io:format("WORKER: REsponse ~p~n",[Response]),
-	State2 = dict:erase(done,State),
-	State3 = dict:store(done, yes, State2),
+	Lbsr = whereis(lbsr),
+	if
+		 Lbsr =:= undefined->
+			State3 = State,
+			Response = noLbSr;
+		 true ->
+			LbSs = loadBalancerSR:find_LbSs(lbsr,ServiceId,self()),
+			if
+				LbSs =:= noServiceRegister ->
+					State3 = State,
+					Response = noServiceRegister;
+				true ->
+					ServiceServer = loadBalancerSS:giveSS(LbSs),
+					%io:format("WORKER: gouing build repsone~n"),
+					if
+						ServiceServer =:= noServiceServer ->
+							State3 = State,
+							Response = noServiceServer;
+						true ->
+							Response = serviceServer:generatePage(ServiceServer),
+							State2 = dict:erase(done,State),
+							State3 = dict:store(done, yes, State2)
+			
+					end
+			end
+	end,		
+	
 	{reply, Response, State3};
 
 handle_call(_Request, _From, State) -> {reply, reply, State}.
