@@ -3,7 +3,7 @@
 -behaviour(gen_server).
 -compile([{parse_transform, lager_transform}]).
 -export([start_link/1,find_LbSs/3,addService/4,giveSRList/1,newDict/2, stop/2,
-		newSrList/2,giveServicesDict/1,showSRList/1, addServiceServer/3, removeService/2]).
+		newSrList/2,giveServicesDict/1,showSRList/1, addServiceServer/3, removeService/2, newLbSs/3]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
@@ -104,7 +104,7 @@ newDict(Pid, Dict) -> gen_server:cast(Pid, {newDict, Dict}).
 
 showSRList(Pid) -> gen_server:cast(Pid, {showSRList}).
 
-
+newLbSs(Pid, ServiceId, LbSs) -> gen_server:cast(Pid, {newLbSs, ServiceId, LbSs}). 
 
 
 find_LbSs(Pid, ServiceId, WorkerPid) -> gen_server:call(Pid, {find_LbSs, ServiceId, WorkerPid}).
@@ -156,19 +156,20 @@ handle_cast({addService, ServiceId, Servers,Node}, State) ->
 	Mode = dict:fetch(mode,State),
 	if
 		 Mode =:= master ->
-			Dict = dict:fetch(dict, State),
+			%Dict = dict:fetch(dict, State),
 			Name = string:concat("lbss_", erlang:atom_to_list(ServiceId)),
 	    	LbSsState = dict:store(serviceId, ServiceId, dict:new()),
 	    	LbSsState2 = dict:store(name, Name, LbSsState),
 	    	LbSsState3 = dict:store(servers, Servers, LbSsState2),
 	    	LbSsState4 = dict:store(node, Node, LbSsState3),
-			{ok, Pid} = supervisor:start_child(rootLb, {Name,{lbSsSupervisor, start_link, [LbSsState4]}, permanent, 1000, supervisor, [lbSsSupervisor]} ),
-			[{_Id, Child, _Type, _Modules}] = supervisor:which_children(Pid),
-			Dict1 = dict:store(ServiceId, Child, Dict),
-			informSRList(Dict1, dict:fetch(srList,State)),
-			State1 = dict:erase(dict,State),
-			State2 = dict:store(dict,Dict1,State1),
-			lager:info("serviceRegister~p: added service ID ~p irs lbss is ~p",[self(), ServiceId, Child]);
+			{ok, _Pid} = supervisor:start_child(rootLb, {Name,{lbSsSupervisor, start_link, [LbSsState4]}, permanent, 1000, supervisor, [lbSsSupervisor]} ),
+			%[{_Id, Child, _Type, _Modules}] = supervisor:which_children(Pid),
+			%Dict1 = dict:store(ServiceId, Child, Dict),
+			%informSRList(Dict1, dict:fetch(srList,State)),
+			%State1 = dict:erase(dict,State),
+			%State2 = dict:store(dict,Dict1,State1),
+			State2=State,
+			lager:info("serviceRegister~p: added service ID ~p ",[self(), ServiceId ]);
 
 		true ->
 			%io:format("sr~p: nie som master, nemozem pridat sluzbu~n",[self()]),
@@ -177,8 +178,14 @@ handle_cast({addService, ServiceId, Servers,Node}, State) ->
 	{noreply, State2};
 
 
-
-
+handle_cast({newLbSs, ServiceId, LbSs}, State) ->
+	Dict = dict:fetch(dict, State),
+	Dict2 = dict:erase(ServiceId,Dict),
+	Dict3 = dict:store(ServiceId,LbSs,Dict2),
+	informSRList(Dict3, dict:fetch(srList,State)),
+	State1 = dict:erase(dict,State),
+	State2 = dict:store(dict,Dict3,State1),
+	{noreply,State2};
 
 
 handle_cast({addServiceServer, ServiceId, Servers}, State) ->

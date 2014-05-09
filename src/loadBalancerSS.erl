@@ -14,7 +14,9 @@ init(State) ->
 	process_flag(trap_exit, true),
 	lager:info("loadBalancerSS~p: lbss for ~p~n",[self(),dict:fetch(serviceId,State)]),
 	register(erlang:list_to_atom(dict:fetch(name, State)), self()),
+
 	ServiceId = dict:fetch(serviceId, State),
+	serviceRegister:newLbSs(sr, ServiceId, self()),
 	Number  = dict:fetch(servers, State),
 	Node = dict:fetch(node, State),
 	Queue = queue:new(), 
